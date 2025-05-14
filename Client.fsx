@@ -1,25 +1,37 @@
 #nowarn "9"
 
 open System.Text
+open System.Text.Json
 open System.Net.Sockets
 open System
 open Microsoft.FSharp.NativeInterop
 
+let ask prompt =
+    printf "%A\n> " prompt
+    Console.ReadLine() |> fun s -> s.Trim()
+
 let main () =
-    let args = fsi.CommandLineArgs
+    let firstNumber = ask "Inserisci il primo numero"
 
-    if Array.length args = 1 then
-        failwith "[C] Il messaggio non può essere vuoto!"
+    if firstNumber |> Int32.TryParse |> fst |> not then
+        failwith "Non un numero!"
 
-    let msg = StringBuilder().AppendJoin(" ", args[1..]) |> string
-    let bytes = Encoding.ASCII.GetBytes msg
+    let secondNumber = ask "Inserisci il secondo numbero"
 
-    printfn $"[C] Sending: <{msg}>"
+    if secondNumber |> Int32.TryParse |> fst |> not then
+        failwith "Non un numero!"
+
+    let operation = ask "Inserisci un'operazione (+, -, *, /)"
 
     let server = new TcpClient("127.0.0.1", 5005)
     let stream = server.GetStream()
 
-    stream.Write bytes
+    {| firstNumber = int firstNumber
+       secondNumber = int secondNumber
+       operation = operation |}
+    |> JsonSerializer.Serialize
+    |> Encoding.ASCII.GetBytes
+    |> stream.Write
 
     printfn "[C] Bytes written!"
 
