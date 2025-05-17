@@ -3,6 +3,7 @@
 open System
 open System.Net
 open System.Text
+open System.Text.Json
 open System.Net.Sockets
 
 [<EntryPoint>]
@@ -12,12 +13,32 @@ let main _ =
     printfn "[S] Listening..."
 
     let endpoint = IPEndPoint(IPAddress.Loopback, 1200)
-    let res = server.Receive(ref endpoint)
+
+    let res
+        : {| firstNumber: int
+             secondNumber: int
+             operation: string |} =
+        server.Receive(ref endpoint) |> JsonSerializer.Deserialize
+
     server.Connect endpoint
+    res |> printfn "[S] %A"
 
-    res |> Encoding.ASCII.GetString |> printfn "[S] %A"
+    let resp =
+        match res.operation with
+        | "+" -> res.firstNumber + res.secondNumber
+        | "-" -> res.firstNumber - res.secondNumber
+        | "*" -> res.firstNumber * res.secondNumber
+        | "/" -> res.firstNumber / res.secondNumber
+        | invalid ->
+            $"Operazione invalida: \"{invalid}\""
+            |> Encoding.ASCII.GetBytes
+            |> server.Send
+            |> ignore
 
-    let data = Encoding.ASCII.GetBytes "pong"
+            failwith "Invalid op received from client"
+
+
+    let data = resp |> string |> Encoding.ASCII.GetBytes
     let _ = server.Send(data, data.Length)
 
     0
